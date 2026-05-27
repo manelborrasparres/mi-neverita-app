@@ -1,98 +1,193 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import React, { useRef, useState } from 'react';
+import {
+  Animated,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  useWindowDimensions,
+  View
+} from 'react-native';
+// Importamos los iconos de la librería que ya viene con Expo
+import { Feather, Ionicons } from '@expo/vector-icons';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+export default function App() {
+  const [isDarkMode, setIsDarkMode] = useState(false);
+  const { width, height } = useWindowDimensions();
+  
+  // 1. Animación para la posición de la cortina (0 = arriba, 1 = abajo)
+  const progresoAnim = useRef(new Animated.Value(0)).current;
+  
+  // 2. Animación para el tamaño del texto (escala 1 = normal)
+  const escalaAnim = useRef(new Animated.Value(1)).current;
 
-export default function HomeScreen() {
+  const ejecutarTransicion = () => {
+    const latido = Animated.loop(
+      Animated.sequence([
+        Animated.timing(escalaAnim, {
+          toValue: 1.1,
+          duration: 700,
+          useNativeDriver: true,
+        }),
+        Animated.timing(escalaAnim, {
+          toValue: 1,
+          duration: 700,
+          useNativeDriver: true,
+        })
+      ])
+    );
+
+    // PASO A: Bajar la cortina
+    Animated.timing(progresoAnim, {
+      toValue: 1,
+      duration: 500,
+      useNativeDriver: false, // La posición 'top' no soporta driver nativo
+    }).start(() => {
+      
+      // PASO B: Cuando la cortina termina de bajar, empieza el latido
+      latido.start();
+      
+      // PASO C: Esperamos 1.5 segundos (simulando carga)
+      setTimeout(() => {
+        
+        // PASO D: Detenemos el latido y subimos la cortina
+        latido.stop(); 
+        
+        // Reset suave de la escala a 1 antes de subir
+        Animated.timing(escalaAnim, { toValue: 1, duration: 200, useNativeDriver: true }).start();
+
+        Animated.timing(progresoAnim, {
+          toValue: 0,
+          duration: 500,
+          useNativeDriver: false,
+        }).start();
+
+      }, 1500);
+    });
+  };
+
+  // Interpolación: mueve la cortina de -alto a 0
+  const posicionCortina = progresoAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-height, 0], 
+  });
+
+  const theme = {
+    bg: isDarkMode ? '#121212' : '#F5F5F5',
+    text: isDarkMode ? '#FFFFFF' : '#000000',
+    header: isDarkMode ? '#1f1f1f' : '#FFFFFF',
+    card: isDarkMode ? '#2c2c2c' : '#FFFFFF',
+    border: isDarkMode ? '#444' : '#DDD',
+    accent: '#6200EE'
+  };
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.bg }]}>
+      <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+      {/* --- CORTINA --- */}
+      <Animated.View 
+        style={[
+          styles.cortina, 
+          { 
+            backgroundColor: theme.accent,
+            top: posicionCortina,
+            height: height,
+          }
+        ]}
+      >
+        {/* Aplicamos la animación de escala al texto para que lata */}
+        <Animated.View style={{ transform: [{ scale: escalaAnim }] }}>
+          <Text style={styles.textCortina}>NEVERITA</Text>
+        </Animated.View>
+      </Animated.View>
+
+      {/* --- HEADER --- */}
+      <View style={[styles.header, { backgroundColor: theme.header, borderBottomColor: theme.border }]}>
+        <TouchableOpacity>
+          <Feather name="user" size={24} color={theme.text} />
+        </TouchableOpacity>
+
+        <Text style={[styles.title, { color: theme.text }]}>Mi App</Text>
+
+        <TouchableOpacity onPress={() => setIsDarkMode(!isDarkMode)}>
+          <Ionicons name={isDarkMode ? "sunny" : "moon"} size={24} color={theme.text} />
+        </TouchableOpacity>
+      </View>
+
+      {/* --- CONTENIDO --- */}
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        {[1, 2, 3].map((num) => (
+          <TouchableOpacity 
+            key={num} 
+            activeOpacity={0.8}
+            onPress={ejecutarTransicion}
+            style={[
+              styles.card, 
+              { 
+                backgroundColor: theme.card, 
+                borderColor: theme.border, 
+                width: width * 0.95,
+                height: height * 0.25 
+              }
+            ]}
+          >
+            <Text style={[styles.cardTitle, { color: theme.text }]}>Pantalla {num}</Text>
+            <Text style={{ color: theme.text }}>Toca para ver la transición</Text>
+          </TouchableOpacity>
+        ))}
+        <View style={{ height: 30 }} />
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
+  container: { flex: 1 },
+  cortina: {
     position: 'absolute',
+    left: 0,
+    right: 0,
+    zIndex: 999,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
+  textCortina: {
+    color: 'white',
+    fontWeight: '900',
+    fontSize: 48,
+    letterSpacing: 4
+  },
+  subtextCortina: {
+    color: 'rgba(255,255,255,0.7)',
+    marginTop: 20,
+    fontSize: 14,
+    textTransform: 'uppercase'
+  },
+  header: { 
+    height: 60, 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'space-between', 
+    paddingHorizontal: 20, 
+    borderBottomWidth: 1 
+  },
+  title: { fontSize: 20, fontWeight: 'bold' },
+  scrollContent: { paddingVertical: 20, alignItems: 'center' },
+  card: {
+    padding: 20,
+    borderRadius: 20,
+    marginBottom: 15,
+    borderWidth: 1,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  cardTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 8 },
 });
